@@ -1,0 +1,124 @@
+buildscript
+{
+    repositories
+    {
+        mavenCentral()
+        jcenter()
+        maven
+        {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+        maven { url = "http://dvs1.progwml6.com/files/maven" }
+        maven { url = "http://minecraft.curseforge.com/api/maven/" }
+        maven { url = 'https://plugins.gradle.org/m2/' }
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = "https://files.minecraftforge.net/maven" }
+    }
+    dependencies
+    {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath "com.wynprice.cursemaven:CurseMaven:2.1.1"
+    }
+}
+
+repositories {
+    maven { url = "http://dvs1.progwml6.com/files/maven" }
+    maven { url = "http://minecraft.curseforge.com/api/maven/" }
+    maven {
+        name = "Progwml6 maven"
+        url = "https://dvs1.progwml6.com/files/maven/"
+    }
+    maven {
+        name = "ModMaven"
+        url = "https://modmaven.k-4u.nl"
+    }
+    maven { url = "http://dvs1.progwml6.com/files/maven/" }
+    maven { url = "https://maven.theillusivec4.top/" }
+
+    jcenter()
+    mavenCentral()
+    mavenLocal()
+
+    // Add the missing repository here
+    maven {
+        name = "ForgeBin"
+        url = "https://maven.minecraftforge.net/"
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'maven-publish'
+apply plugin: 'maven'
+apply plugin: "com.wynprice.cursemaven"
+//Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
+
+
+version = mod_version
+group = "harmonised.${mod_id}"
+archivesBaseName = mod_id
+
+sourceCompatibility = targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
+}
+
+print(mc_version + "_" + forge_version)
+
+minecraft {
+    version = "${mc_version}-${forge_version}"
+    runDir = "run"
+    mappings = "${mappings_channel}_${mappings_version}"
+}
+
+dependencies
+{
+    compile files("jei_1.12.2-4.16.1.301.jar")
+    compile files("worldedit-forge-mc1.12.2-6.1.10-dist")
+}
+
+jar {
+    manifest {
+        attributes([
+                "Specification-Title": mod_id,
+                "Specification-Vendor": "examplemodsareus",
+                "Specification-Version": "1", // We are version 1 of ourselves
+                "Implementation-Title": project.name,
+                "Implementation-Version": "${version}",
+                "Implementation-Vendor" :"examplemodsareus",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+processResources {
+    // this will ensure that this task is redone when the versions change.
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    // replace stuff in mcmod.info, nothing else
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+
+        // replace version and mcversion
+        expand 'version':project.version, 'mcversion':project.minecraft.version
+    }
+
+    // copy everything else except the mcmod.info
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact jar
+        }
+    }
+    repositories {
+        maven {
+            url "file:///${project.projectDir}/mcmodsrepo"
+        }
+    }
+}

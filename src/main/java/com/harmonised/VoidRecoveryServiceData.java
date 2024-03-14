@@ -8,7 +8,6 @@ import net.minecraft.world.World;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 import net.minecraftforge.common.util.Constants;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,11 +23,14 @@ public class VoidRecoveryServiceData extends WorldSavedData
         super(ID);
     }
 
+    public VoidRecoveryServiceData(String id)
+    {
+        this();
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound baseDataNbt)
     {
-        System.out.println("started loading " + savedItems.size());
-
         if(baseDataNbt.hasKey(Finals.ITEMS))
         {
             final NBTTagList itemsListNbt = baseDataNbt.getTagList(Finals.ITEMS, Constants.NBT.TAG_COMPOUND);
@@ -51,12 +53,10 @@ public class VoidRecoveryServiceData extends WorldSavedData
                 }
             }
         }
-
-        System.out.println("finished loading " + savedItems.size());
     }
 
     @Override
-    public @NotNull NBTTagCompound writeToNBT(NBTTagCompound baseDataNbt)
+    public NBTTagCompound writeToNBT(NBTTagCompound baseDataNbt)
     {
         baseDataNbt.setTag(Finals.ITEMS, Util.makeListTag(itemsListNbt ->
         {
@@ -66,8 +66,6 @@ public class VoidRecoveryServiceData extends WorldSavedData
                 itemsListNbt.appendTag(savedItem.writeToNBT(new NBTTagCompound()));
                 ++i;
             }
-
-            System.out.println("saved " + itemsListNbt.tagCount());
         }));
 
         return baseDataNbt;
@@ -78,12 +76,19 @@ public class VoidRecoveryServiceData extends WorldSavedData
         return savedItems.size() != 0;
     }
 
-    public ItemStack getAndRemoveNextSavedItem()
+    public ItemStack getNextItem()
     {
-        final ItemStack stack = savedItems.remove(0);
+        //Retrieved with intent to shrink; dirty is necessary.
+        setDirty(true);
+
+        return savedItems.get(0);
+    }
+
+    public void removeNextItem()
+    {
+        savedItems.remove(0);
 
         setDirty(true);
-        return stack;
     }
 
     public void saveItem(ItemStack itemStack)
@@ -93,13 +98,7 @@ public class VoidRecoveryServiceData extends WorldSavedData
             return;
         }
 
-        final int stackCount = itemStack.getCount();
-        for(int i = 0; i < stackCount; ++i)
-        {
-            final ItemStack copyStack = itemStack.copy();
-            copyStack.setCount(1);
-            savedItems.add(copyStack);
-        }
+        savedItems.add(itemStack);
 
         setDirty(true);
     }

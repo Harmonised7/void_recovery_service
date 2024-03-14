@@ -3,6 +3,7 @@ package com.harmonised;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.event.entity.item.ItemExpireEvent;
@@ -42,7 +43,15 @@ public class EventHandler
 
             final EntityPlayerMP player = Util.getRandomFromList(players);
             final Vec3d spawnPos = Util.getLastNonSolidAbovePos(player.world, player.getPositionVector());
-            Util.spawnItemStack(data.getAndRemoveNextSavedItem(), player.world, spawnPos);
+            final ItemStack nextStack = data.getNextItem();
+            if(nextStack.getCount() <= 1)
+            {
+                data.removeNextItem();
+            }
+            final ItemStack spawnStack = nextStack.copy();
+            spawnStack.setCount(1);
+            Util.spawnItemStack(spawnStack, player.world, spawnPos);
+            nextStack.shrink(1);
             player.world.playSound(null, spawnPos.x, spawnPos.y, spawnPos.z, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.BLOCKS, 1, Util.getRandomFloat(0.8f, 1.2f));
 
 //            do

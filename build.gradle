@@ -1,124 +1,106 @@
-buildscript
-{
-    repositories
-    {
-        mavenCentral()
-        jcenter()
-        maven
-        {
-            name = "forge"
-            url = "http://files.minecraftforge.net/maven"
-        }
-        maven { url = "http://dvs1.progwml6.com/files/maven" }
-        maven { url = "http://minecraft.curseforge.com/api/maven/" }
-        maven { url = 'https://plugins.gradle.org/m2/' }
-        maven { url = 'https://maven.minecraftforge.net/' }
-        maven { url = "https://files.minecraftforge.net/maven" }
-    }
-    dependencies
-    {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-        classpath "com.wynprice.cursemaven:CurseMaven:2.1.1"
-    }
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
 }
-
-repositories {
-    maven { url = "http://dvs1.progwml6.com/files/maven" }
-    maven { url = "http://minecraft.curseforge.com/api/maven/" }
-    maven {
-        name = "Progwml6 maven"
-        url = "https://dvs1.progwml6.com/files/maven/"
-    }
-    maven {
-        name = "ModMaven"
-        url = "https://modmaven.k-4u.nl"
-    }
-    maven { url = "http://dvs1.progwml6.com/files/maven/" }
-    maven { url = "https://maven.theillusivec4.top/" }
-
-    jcenter()
-    mavenCentral()
-    mavenLocal()
-
-    // Add the missing repository here
-    maven {
-        name = "ForgeBin"
-        url = "https://maven.minecraftforge.net/"
-    }
-}
-
-apply plugin: 'net.minecraftforge.gradle.forge'
-apply plugin: 'maven-publish'
-apply plugin: 'maven'
-apply plugin: "com.wynprice.cursemaven"
-//Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
-
 
 version = mod_version
-group = "harmonised.${mod_id}"
-archivesBaseName = mod_id
+group = mod_group_id
 
-sourceCompatibility = targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
-compileJava {
-    sourceCompatibility = targetCompatibility = '1.8'
+base {
+    archivesName = mod_id
 }
 
-print(mc_version + "_" + forge_version)
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
 
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
 minecraft {
-    version = "${mc_version}-${forge_version}"
-    runDir = "run"
-    mappings = "${mappings_channel}_${mappings_version}"
+    mappings channel: mapping_channel, version: mapping_version
+    copyIdeResources = true
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+            // this block needs to be here for runClient to exist
+        }
+
+        server {
+            args '--nogui'
+        }
+
+        data {
+            workingDirectory project.file('run-data')
+
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
 }
 
-dependencies
-{
-    compile files("jei_1.12.2-4.16.1.301.jar")
-    compile files("worldedit-forge-mc1.12.2-6.1.10-dist")
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
 }
 
-jar {
+dependencies {
+    minecraft "net.minecraftforge:forge:${mc_version}-${forge_version}"
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            mc_version: mc_version, minecraft_version_range: mc_version_range,
+            forge_version: forge_version, forge_version_range: forge_version_range,
+            loader_version_range: loader_version_range,
+            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+            mod_authors: mod_authors, mod_description: mod_description,
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+// Example for how to get properties into the manifest for reading at runtime.
+tasks.named('jar', Jar).configure {
     manifest {
         attributes([
-                "Specification-Title": mod_id,
-                "Specification-Vendor": "examplemodsareus",
-                "Specification-Version": "1", // We are version 1 of ourselves
-                "Implementation-Title": project.name,
-                "Implementation-Version": "${version}",
-                "Implementation-Vendor" :"examplemodsareus",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1', // We are version 1 of ourselves
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.jar.archiveVersion,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
-}
 
-processResources {
-    // this will ensure that this task is redone when the versions change.
-    inputs.property "version", project.version
-    inputs.property "mcversion", project.minecraft.version
-
-    // replace stuff in mcmod.info, nothing else
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
-
-        // replace version and mcversion
-        expand 'version':project.version, 'mcversion':project.minecraft.version
-    }
-
-    // copy everything else except the mcmod.info
-    from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
-    }
+// This is the preferred method to reobfuscate your jar file
+    finalizedBy 'reobfJar'
 }
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        register('mavenJava', MavenPublication) {
             artifact jar
         }
     }
     repositories {
         maven {
-            url "file:///${project.projectDir}/mcmodsrepo"
+            url "file://${project.projectDir}/mcmodsrepo"
         }
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }
